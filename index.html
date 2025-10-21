@@ -1,0 +1,434 @@
+i<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Interactive Pythagorean Theorem Visualizer</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			body {
+				font-family: "Inter", sans-serif;
+				/* Prevent scrolling on the body, especially for iOS rubber-banding */
+				overscroll-behavior-y: contain;
+			}
+			canvas {
+				touch-action: none; /* Disables default touch actions like scroll, allowing custom handling */
+			}
+		</style>
+	</head>
+	<body class="flex flex-col h-screen bg-gray-50 text-gray-800 antialiased">
+		<header class="bg-white shadow-md p-4 z-10">
+			<div class="max-w-7xl mx-auto text-center">
+				<h1 class="text-2xl md:text-3xl font-bold text-gray-900">
+					Interactive Pythagorean Theorem Visualizer
+				</h1>
+				<p class="text-sm md:text-md text-blue-600">
+					A tool for GCSE Students
+				</p>
+			</div>
+		</header>
+
+		<main
+			class="flex-grow flex flex-col lg:flex-row items-center justify-center p-4 md:p-8 space-y-4 lg:space-y-0 lg:space-x-8 overflow-hidden"
+		>
+			<div
+				class="w-full lg:w-2/3 h-2/5 lg:h-full max-w-3xl bg-white rounded-2xl shadow-lg border border-gray-200 cursor-grab active:cursor-grabbing"
+			>
+				<canvas id="visualizerCanvas"></canvas>
+			</div>
+
+			<div
+				class="w-full lg:w-1/3 h-3/5 lg:h-auto max-w-md p-6 bg-white rounded-2xl shadow-lg border border-gray-200 overflow-y-auto"
+			>
+				<h2 class="text-xl font-semibold mb-2 text-center">
+					Adjust & Explore
+				</h2>
+				<p class="text-center text-gray-500 mb-4">
+					Drag to pan, scroll or pinch to zoom.
+				</p>
+
+				<div class="mb-6">
+					<label
+						for="sliderA"
+						class="flex justify-between items-center text-lg font-medium text-red-600"
+					>
+						<span>Side a</span>
+						<span
+							id="valueA"
+							class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-base font-semibold"
+							>30</span
+						>
+					</label>
+					<input
+						id="sliderA"
+						type="range"
+						min="1"
+						max="100"
+						value="30"
+						class="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+					/>
+				</div>
+
+				<div class="mb-8">
+					<label
+						for="sliderB"
+						class="flex justify-between items-center text-lg font-medium text-green-600"
+					>
+						<span>Side b</span>
+						<span
+							id="valueB"
+							class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-base font-semibold"
+							>40</span
+						>
+					</label>
+					<input
+						id="sliderB"
+						type="range"
+						min="1"
+						max="100"
+						value="40"
+						class="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+					/>
+				</div>
+
+				<div class="mt-6 text-center">
+					<button
+						id="visualizeBtn"
+						class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out disabled:bg-gray-400 disabled:cursor-not-allowed"
+					>
+						Visualize a² + b² = c²
+					</button>
+				</div>
+
+				<div
+					class="text-center bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg mt-8"
+				>
+					<h3 class="text-lg font-semibold text-gray-800 mb-2">
+						The Theorem in Action
+					</h3>
+					<div
+						class="text-xl md:text-2xl font-mono bg-white p-3 rounded-lg shadow-inner"
+					>
+						<span class="text-red-600">a²</span> +
+						<span class="text-green-600">b²</span> =
+						<span class="text-blue-600">c²</span>
+					</div>
+					<div
+						id="formulaValues"
+						class="text-md md:text-lg font-mono mt-3 text-gray-600 break-words"
+					></div>
+					<div
+						id="formulaResult"
+						class="text-md md:text-lg font-mono mt-2 text-gray-600 break-words"
+					></div>
+				</div>
+			</div>
+		</main>
+
+		<script>
+			document.addEventListener("DOMContentLoaded", () => {
+				const canvas = document.getElementById("visualizerCanvas");
+				const ctx = canvas.getContext("2d");
+				const sliderA = document.getElementById("sliderA");
+				const sliderB = document.getElementById("sliderB");
+				const valueA = document.getElementById("valueA");
+				const valueB = document.getElementById("valueB");
+				const visualizeBtn = document.getElementById("visualizeBtn");
+				const formulaValues = document.getElementById("formulaValues");
+				const formulaResult = document.getElementById("formulaResult");
+
+				let a = +sliderA.value;
+				let b = +sliderB.value;
+				let isAnimating = false;
+				let animationStartTime = 0;
+				const animationDuration = 2000;
+
+				let scale = 2.5;
+				let offsetX = 0;
+				let offsetY = 0;
+				let isDragging = false;
+				let lastX = 0;
+				let lastY = 0;
+				let initialPinchDistance = null;
+				let lastScale = 1;
+
+				function resizeCanvas() {
+					const parent = canvas.parentElement;
+					canvas.width = parent.clientWidth * window.devicePixelRatio;
+					canvas.height =
+						parent.clientHeight * window.devicePixelRatio;
+					canvas.style.width = `${parent.clientWidth}px`;
+					canvas.style.height = `${parent.clientHeight}px`;
+					if (!offsetX && !offsetY) {
+						offsetX = canvas.width / 2;
+						offsetY = canvas.height * 0.75;
+					}
+					draw();
+				}
+
+				function draw() {
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					ctx.save();
+					ctx.translate(offsetX, offsetY);
+					ctx.scale(scale, scale);
+
+					const c = Math.sqrt(a * a + b * b);
+					const angle = Math.atan2(-a, b);
+
+					ctx.lineWidth = 2 / scale;
+					ctx.fillStyle = "rgba(16, 185, 129, 0.6)";
+					ctx.strokeStyle = "rgb(5, 150, 105)";
+					ctx.fillRect(-b, 0, b, b);
+					ctx.strokeRect(-b, 0, b, b);
+
+					ctx.fillStyle = "rgba(239, 68, 68, 0.6)";
+					ctx.strokeStyle = "rgb(220, 38, 38)";
+					ctx.fillRect(0, -a, a, a);
+					ctx.strokeRect(0, -a, a, a);
+
+					ctx.save();
+					ctx.translate(-b, 0);
+					ctx.rotate(angle);
+					ctx.fillStyle = "rgba(59, 130, 246, 0.6)";
+					ctx.strokeStyle = "rgb(37, 99, 235)";
+					ctx.fillRect(0, -c, c, c);
+					ctx.strokeRect(0, -c, c, c);
+					ctx.restore();
+
+					ctx.beginPath();
+					ctx.moveTo(0, 0);
+					ctx.lineTo(-b, 0);
+					ctx.lineTo(0, -a);
+					ctx.closePath();
+					ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+					ctx.strokeStyle = "#1f2937";
+					ctx.lineWidth = Math.max(1.5, Math.min(5, c / 40)) / scale;
+					ctx.fill();
+					ctx.stroke();
+
+					ctx.fillStyle = "#1f2937";
+					// --- FONT SIZE INCREASED HERE ---
+					ctx.font = `${36 / scale}px sans-serif`;
+					ctx.textAlign = "center";
+					ctx.textBaseline = "middle";
+
+					// Adjusted label positions slightly for the new font size
+					ctx.fillText("a", 20 / scale, -a / 2);
+					ctx.fillText("b", -b / 2, 25 / scale);
+
+					ctx.save();
+					ctx.translate(-b, 0);
+					ctx.rotate(angle);
+					ctx.fillText("c", c / 2, -c / 2);
+					ctx.restore();
+
+					ctx.restore();
+				}
+
+				function runAnimation(timestamp) {
+					if (!animationStartTime) animationStartTime = timestamp;
+					const progress = Math.min(
+						(timestamp - animationStartTime) / animationDuration,
+						1
+					);
+
+					draw();
+
+					ctx.save();
+					ctx.translate(offsetX, offsetY);
+					ctx.scale(scale, scale);
+
+					const c = Math.sqrt(a * a + b * b);
+					const angle = Math.atan2(-a, b);
+
+					ctx.fillStyle = "rgba(239, 68, 68, 0.8)";
+					ctx.fillRect(0, -a, a, a * (1 - progress));
+
+					ctx.fillStyle = "rgba(16, 185, 129, 0.8)";
+					ctx.fillRect(-b, 0, b * (1 - progress), b);
+
+					ctx.save();
+					ctx.translate(-b, 0);
+					ctx.rotate(angle);
+					const fillAHeight = ((a * a) / c) * progress;
+					const fillBHeight = ((b * b) / c) * progress;
+					ctx.fillStyle = "rgba(239, 68, 68, 0.8)";
+					ctx.fillRect(0, -c, c, fillAHeight);
+					ctx.fillStyle = "rgba(16, 185, 129, 0.8)";
+					ctx.fillRect(0, -c + fillAHeight, c, fillBHeight);
+					ctx.restore();
+
+					ctx.restore();
+
+					if (progress < 1) {
+						requestAnimationFrame(runAnimation);
+					} else {
+						isAnimating = false;
+						animationStartTime = 0;
+						toggleControls();
+						draw();
+					}
+				}
+
+				function toggleControls() {
+					sliderA.disabled = isAnimating;
+					sliderB.disabled = isAnimating;
+					visualizeBtn.disabled = isAnimating;
+					visualizeBtn.textContent = isAnimating
+						? "Visualizing..."
+						: "Visualize a² + b² = c²";
+				}
+
+				function updateUI() {
+					a = +sliderA.value;
+					b = +sliderB.value;
+					valueA.textContent = a;
+					valueB.textContent = b;
+					const c = Math.sqrt(a * a + b * b);
+					const aSq = a * a;
+					const bSq = b * b;
+					const cSq = Math.round(c * c);
+					formulaValues.innerHTML = `<span class="text-red-600">${a}²</span> + <span class="text-green-600">${b}²</span> = <span class="text-blue-600">${c.toFixed(
+						2
+					)}²</span>`;
+					formulaResult.innerHTML = `<span class="text-red-600">${aSq}</span> + <span class="text-green-600">${bSq}</span> = <span class="text-blue-600">${cSq}</span>`;
+					draw();
+				}
+
+				function handlePan(dx, dy) {
+					offsetX += dx;
+					offsetY += dy;
+					draw();
+				}
+
+				function handleZoom(delta, centerX, centerY) {
+					const scaleAmount = 1.1;
+					const worldX =
+						(centerX * window.devicePixelRatio - offsetX) / scale;
+					const worldY =
+						(centerY * window.devicePixelRatio - offsetY) / scale;
+
+					scale *= delta < 0 ? scaleAmount : 1 / scaleAmount;
+
+					offsetX =
+						centerX * window.devicePixelRatio - worldX * scale;
+					offsetY =
+						centerY * window.devicePixelRatio - worldY * scale;
+					draw();
+				}
+
+				// --- Mouse Event Listeners ---
+				canvas.addEventListener("mousedown", (e) => {
+					isDragging = true;
+					lastX = e.clientX;
+					lastY = e.clientY;
+				});
+				canvas.addEventListener("mouseup", () => (isDragging = false));
+				canvas.addEventListener(
+					"mouseleave",
+					() => (isDragging = false)
+				);
+				canvas.addEventListener("mousemove", (e) => {
+					if (!isDragging) return;
+					handlePan(e.clientX - lastX, e.clientY - lastY);
+					lastX = e.clientX;
+					lastY = e.clientY;
+				});
+				canvas.addEventListener(
+					"wheel",
+					(e) => {
+						e.preventDefault();
+						const rect = canvas.getBoundingClientRect();
+						handleZoom(
+							e.deltaY,
+							e.clientX - rect.left,
+							e.clientY - rect.top
+						);
+					},
+					{ passive: false }
+				);
+
+				// --- Touch Event Listeners ---
+				canvas.addEventListener("touchstart", (e) => {
+					if (e.touches.length === 1) {
+						isDragging = true;
+						lastX = e.touches[0].clientX;
+						lastY = e.touches[0].clientY;
+					} else if (e.touches.length === 2) {
+						isDragging = false;
+						initialPinchDistance = Math.hypot(
+							e.touches[0].clientX - e.touches[1].clientX,
+							e.touches[0].clientY - e.touches[1].clientY
+						);
+						lastScale = scale;
+					}
+				});
+				canvas.addEventListener("touchend", () => {
+					isDragging = false;
+					initialPinchDistance = null;
+				});
+				canvas.addEventListener("touchmove", (e) => {
+					if (isDragging && e.touches.length === 1) {
+						handlePan(
+							e.touches[0].clientX - lastX,
+							e.touches[0].clientY - lastY
+						);
+						lastX = e.touches[0].clientX;
+						lastY = e.touches[0].clientY;
+					} else if (initialPinchDistance && e.touches.length === 2) {
+						const newPinchDistance = Math.hypot(
+							e.touches[0].clientX - e.touches[1].clientX,
+							e.touches[0].clientY - e.touches[1].clientY
+						);
+						const scaleFactor =
+							newPinchDistance / initialPinchDistance;
+						const newScale = lastScale * scaleFactor;
+
+						const rect = canvas.getBoundingClientRect();
+						const midX =
+							(e.touches[0].clientX + e.touches[1].clientX) / 2 -
+							rect.left;
+						const midY =
+							(e.touches[0].clientY + e.touches[1].clientY) / 2 -
+							rect.top;
+
+						const oldScale = scale;
+						scale = newScale;
+						offsetX -=
+							midX *
+							window.devicePixelRatio *
+							(1 / oldScale - 1 / newScale) *
+							oldScale;
+						offsetY -=
+							midY *
+							window.devicePixelRatio *
+							(1 / oldScale - 1 / newScale) *
+							oldScale;
+
+						draw();
+					}
+				});
+
+				// --- Final Setup ---
+				sliderA.addEventListener("input", updateUI);
+				sliderB.addEventListener("input", updateUI);
+				visualizeBtn.addEventListener("click", () => {
+					if (!isAnimating) {
+						isAnimating = true;
+						toggleControls();
+						requestAnimationFrame(runAnimation);
+					}
+				});
+				window.addEventListener("resize", resizeCanvas);
+				resizeCanvas();
+				updateUI();
+			});
+		</script>
+	</body>
+</html>
