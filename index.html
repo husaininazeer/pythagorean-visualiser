@@ -1,9 +1,9 @@
-i<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Interactive Pythagorean Theorem Visualizer</title>
+		<title>Pythagorean Theorem Visualiser</title>
 		<script src="https://cdn.tailwindcss.com"></script>
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,11 +14,18 @@ i<!DOCTYPE html>
 		<style>
 			body {
 				font-family: "Inter", sans-serif;
-				/* Prevent scrolling on the body, especially for iOS rubber-banding */
 				overscroll-behavior-y: contain;
 			}
 			canvas {
-				touch-action: none; /* Disables default touch actions like scroll, allowing custom handling */
+				touch-action: none;
+			}
+			/* Simple toggle switch styling */
+			.toggle-checkbox:checked {
+				right: 0;
+				border-color: #4f46e5;
+			}
+			.toggle-checkbox:checked + .toggle-label {
+				background-color: #4f46e5;
 			}
 		</style>
 	</head>
@@ -29,7 +36,7 @@ i<!DOCTYPE html>
 					Interactive Pythagorean Theorem Visualizer
 				</h1>
 				<p class="text-sm md:text-md text-blue-600">
-					A tool for GCSE Students
+					A tool for GCSE & A-Level Students
 				</p>
 			</div>
 		</header>
@@ -75,7 +82,7 @@ i<!DOCTYPE html>
 					/>
 				</div>
 
-				<div class="mb-8">
+				<div class="mb-6">
 					<label
 						for="sliderB"
 						class="flex justify-between items-center text-lg font-medium text-green-600"
@@ -97,12 +104,36 @@ i<!DOCTYPE html>
 					/>
 				</div>
 
-				<div class="mt-6 text-center">
+				<!-- Toggle Switch for Squares -->
+				<div class="flex items-center justify-between mt-6">
+					<label
+						for="showSquaresToggle"
+						class="text-lg font-medium text-gray-700"
+						>Show Squares</label
+					>
+					<div
+						class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in"
+					>
+						<input
+							type="checkbox"
+							name="toggle"
+							id="showSquaresToggle"
+							class="toggle-checkbox absolute block w-7 h-7 rounded-full bg-white border-4 appearance-none cursor-pointer"
+							checked
+						/>
+						<label
+							for="showSquaresToggle"
+							class="toggle-label block overflow-hidden h-7 rounded-full bg-gray-300 cursor-pointer"
+						></label>
+					</div>
+				</div>
+
+				<div class="mt-8 text-center">
 					<button
 						id="visualizeBtn"
 						class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out disabled:bg-gray-400 disabled:cursor-not-allowed"
 					>
-						Visualize a² + b² = c²
+						Show Area Proof
 					</button>
 				</div>
 
@@ -139,16 +170,21 @@ i<!DOCTYPE html>
 				const sliderB = document.getElementById("sliderB");
 				const valueA = document.getElementById("valueA");
 				const valueB = document.getElementById("valueB");
+				const showSquaresToggle =
+					document.getElementById("showSquaresToggle");
 				const visualizeBtn = document.getElementById("visualizeBtn");
 				const formulaValues = document.getElementById("formulaValues");
 				const formulaResult = document.getElementById("formulaResult");
 
+				// --- State ---
 				let a = +sliderA.value;
 				let b = +sliderB.value;
+				let showSquares = showSquaresToggle.checked;
 				let isAnimating = false;
 				let animationStartTime = 0;
 				const animationDuration = 2000;
 
+				// --- Transformation State ---
 				let scale = 2.5;
 				let offsetX = 0;
 				let offsetY = 0;
@@ -157,6 +193,10 @@ i<!DOCTYPE html>
 				let lastY = 0;
 				let initialPinchDistance = null;
 				let lastScale = 1;
+
+				// --- Utility Functions ---
+				// Linear interpolation function for smooth animation
+				const lerp = (start, end, t) => start * (1 - t) + end * t;
 
 				function resizeCanvas() {
 					const parent = canvas.parentElement;
@@ -172,6 +212,7 @@ i<!DOCTYPE html>
 					draw();
 				}
 
+				// --- Main Drawing Logic ---
 				function draw() {
 					ctx.clearRect(0, 0, canvas.width, canvas.height);
 					ctx.save();
@@ -181,54 +222,184 @@ i<!DOCTYPE html>
 					const c = Math.sqrt(a * a + b * b);
 					const angle = Math.atan2(-a, b);
 
-					ctx.lineWidth = 2 / scale;
-					ctx.fillStyle = "rgba(16, 185, 129, 0.6)";
-					ctx.strokeStyle = "rgb(5, 150, 105)";
-					ctx.fillRect(-b, 0, b, b);
-					ctx.strokeRect(-b, 0, b, b);
+					if (showSquares) {
+						// Draw the three squares if toggled on
+						ctx.lineWidth = 2 / scale;
+						ctx.fillStyle = "rgba(16, 185, 129, 0.6)";
+						ctx.strokeStyle = "rgb(5, 150, 105)";
+						ctx.fillRect(-b, 0, b, b);
+						ctx.strokeRect(-b, 0, b, b);
 
-					ctx.fillStyle = "rgba(239, 68, 68, 0.6)";
-					ctx.strokeStyle = "rgb(220, 38, 38)";
-					ctx.fillRect(0, -a, a, a);
-					ctx.strokeRect(0, -a, a, a);
+						ctx.fillStyle = "rgba(239, 68, 68, 0.6)";
+						ctx.strokeStyle = "rgb(220, 38, 38)";
+						ctx.fillRect(0, -a, a, a);
+						ctx.strokeRect(0, -a, a, a);
 
-					ctx.save();
-					ctx.translate(-b, 0);
-					ctx.rotate(angle);
-					ctx.fillStyle = "rgba(59, 130, 246, 0.6)";
-					ctx.strokeStyle = "rgb(37, 99, 235)";
-					ctx.fillRect(0, -c, c, c);
-					ctx.strokeRect(0, -c, c, c);
-					ctx.restore();
+						ctx.save();
+						ctx.translate(-b, 0);
+						ctx.rotate(angle);
+						ctx.fillStyle = "rgba(59, 130, 246, 0.6)";
+						ctx.strokeStyle = "rgb(37, 99, 235)";
+						ctx.fillRect(0, -c, c, c);
+						ctx.strokeRect(0, -c, c, c);
+						ctx.restore();
+					}
 
+					// Draw the main triangle background
 					ctx.beginPath();
 					ctx.moveTo(0, 0);
 					ctx.lineTo(-b, 0);
 					ctx.lineTo(0, -a);
 					ctx.closePath();
 					ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-					ctx.strokeStyle = "#1f2937";
-					ctx.lineWidth = Math.max(1.5, Math.min(5, c / 40)) / scale;
 					ctx.fill();
+
+					// Draw colored edges for the triangle
+					ctx.lineWidth = Math.max(1.5, Math.min(5, c / 40)) / scale;
+					// Side b (green)
+					ctx.beginPath();
+					ctx.moveTo(0, 0);
+					ctx.lineTo(-b, 0);
+					ctx.strokeStyle = "rgb(5, 150, 105)";
+					ctx.stroke();
+					// Side a (red)
+					ctx.beginPath();
+					ctx.moveTo(0, 0);
+					ctx.lineTo(0, -a);
+					ctx.strokeStyle = "rgb(220, 38, 38)";
+					ctx.stroke();
+					// Side c (blue)
+					ctx.beginPath();
+					ctx.moveTo(-b, 0);
+					ctx.lineTo(0, -a);
+					ctx.strokeStyle = "rgb(37, 99, 235)";
 					ctx.stroke();
 
-					ctx.fillStyle = "#1f2937";
-					// --- FONT SIZE INCREASED HERE ---
-					ctx.font = `${36 / scale}px sans-serif`;
+					// Draw the numerical side length labels
+					ctx.font = `bold ${60 / scale}px sans-serif`;
 					ctx.textAlign = "center";
 					ctx.textBaseline = "middle";
 
-					// Adjusted label positions slightly for the new font size
-					ctx.fillText("a", 20 / scale, -a / 2);
-					ctx.fillText("b", -b / 2, 25 / scale);
-
+					// Label 'a' (red)
 					ctx.save();
-					ctx.translate(-b, 0);
+					ctx.translate(30 / scale, -a / 2);
+					ctx.rotate(Math.PI / 2);
+					ctx.fillStyle = "rgb(220, 38, 38)";
+					ctx.fillText(
+						a % 1 === 0 ? a.toFixed(0) : a.toFixed(1),
+						0,
+						0
+					);
+					ctx.restore();
+
+					// Label 'b' (green)
+					ctx.fillStyle = "rgb(5, 150, 105)";
+					ctx.fillText(
+						b % 1 === 0 ? b.toFixed(0) : b.toFixed(1),
+						-b / 2,
+						30 / scale
+					);
+
+					// Label 'c' (blue)
+					ctx.save();
+					ctx.translate(-b / 2, -a / 2);
 					ctx.rotate(angle);
-					ctx.fillText("c", c / 2, -c / 2);
+					ctx.fillStyle = "rgb(37, 99, 235)";
+					ctx.fillText(
+						c % 1 === 0 ? c.toFixed(0) : c.toFixed(1),
+						0,
+						-30 / scale
+					);
 					ctx.restore();
 
 					ctx.restore();
+				}
+
+				// --- Dissection Animation Logic ---
+				function getDissectionPieces() {
+					const c = Math.sqrt(a * a + b * b);
+					const cos = b / c;
+					const sin = a / c;
+
+					// Center of square b
+					const centerBx = -b / 2;
+					const centerBy = b / 2;
+
+					// Points for cutting square b
+					const p1 = { x: -b, y: a * cos * cos };
+					const p2 = { x: -b * sin * sin, y: 0 };
+					const p3 = { x: -a * sin * cos, y: b };
+					const p4 = { x: -b, y: b - a * cos * cos };
+
+					const startPieces = {
+						// Square a is the center piece
+						centerPiece: [
+							{ x: 0, y: 0 },
+							{ x: a, y: 0 },
+							{ x: a, y: -a },
+							{ x: 0, y: -a },
+						],
+						// The four pieces from square b
+						q1: [
+							{ x: -b, y: 0 },
+							p2,
+							{ x: centerBx, y: centerBy },
+							p1,
+						],
+						q2: [
+							p2,
+							{ x: 0, y: 0 },
+							p3,
+							{ x: centerBx, y: centerBy },
+						],
+						q3: [
+							p3,
+							{ x: 0, y: b },
+							p4,
+							{ x: centerBx, y: centerBy },
+						],
+						q4: [
+							p4,
+							{ x: -b, y: b },
+							p1,
+							{ x: centerBx, y: centerBy },
+						],
+					};
+
+					const endPieces = {
+						centerPiece: [
+							{ x: a * sin, y: -a * cos },
+							{ x: a * sin + a * cos, y: -a * cos + a * sin },
+							{ x: a * cos, y: a * sin },
+							{ x: 0, y: 0 },
+						].map((p) => ({ x: p.x - b, y: p.y })),
+						q1: [
+							{ x: -b, y: 0 },
+							{ x: 0, y: 0 },
+							{ x: a * sin, y: -a * cos },
+							{ x: a * sin - b, y: -a * cos },
+						],
+						q2: [
+							{ x: 0, y: 0 },
+							{ x: a * cos, y: a * sin },
+							{ x: a * cos - b, y: a * sin },
+							{ x: -b, y: 0 },
+						],
+						q3: [
+							{ x: a * cos, y: a * sin },
+							{ x: a * cos + a * sin, y: a * sin - a * cos },
+							{ x: a * sin, y: -a * cos },
+							{ x: 0, y: 0 },
+						].map((p) => ({ x: p.x - b, y: p.y + b })),
+						q4: [
+							{ x: a * sin - b, y: -a * cos + b },
+							{ x: a * sin, y: -a * cos },
+							{ x: a * sin + a * cos, y: -a * cos + a * sin },
+							{ x: a * cos, y: a * sin },
+						].map((p) => ({ x: p.x - b, y: p.y - b })),
+					};
+
+					return { start: startPieces, end: endPieces };
 				}
 
 				function runAnimation(timestamp) {
@@ -237,6 +408,8 @@ i<!DOCTYPE html>
 						(timestamp - animationStartTime) / animationDuration,
 						1
 					);
+					const easedProgress =
+						0.5 - 0.5 * Math.cos(progress * Math.PI); // Ease in-out
 
 					draw();
 
@@ -244,25 +417,56 @@ i<!DOCTYPE html>
 					ctx.translate(offsetX, offsetY);
 					ctx.scale(scale, scale);
 
-					const c = Math.sqrt(a * a + b * b);
-					const angle = Math.atan2(-a, b);
+					const pieces = getDissectionPieces();
 
-					ctx.fillStyle = "rgba(239, 68, 68, 0.8)";
-					ctx.fillRect(0, -a, a, a * (1 - progress));
+					const drawPiece = (start, end, color) => {
+						ctx.beginPath();
+						const firstPoint = {
+							x: lerp(start[0].x, end[0].x, easedProgress),
+							y: lerp(start[0].y, end[0].y, easedProgress),
+						};
+						ctx.moveTo(firstPoint.x, firstPoint.y);
+						for (let i = 1; i < start.length; i++) {
+							const point = {
+								x: lerp(start[i].x, end[i].x, easedProgress),
+								y: lerp(start[i].y, end[i].y, easedProgress),
+							};
+							ctx.lineTo(point.x, point.y);
+						}
+						ctx.closePath();
+						ctx.fillStyle = color;
+						ctx.fill();
+						ctx.stroke();
+					};
 
-					ctx.fillStyle = "rgba(16, 185, 129, 0.8)";
-					ctx.fillRect(-b, 0, b * (1 - progress), b);
+					ctx.strokeStyle = "#1f2937";
+					ctx.lineWidth = 1 / scale;
 
-					ctx.save();
-					ctx.translate(-b, 0);
-					ctx.rotate(angle);
-					const fillAHeight = ((a * a) / c) * progress;
-					const fillBHeight = ((b * b) / c) * progress;
-					ctx.fillStyle = "rgba(239, 68, 68, 0.8)";
-					ctx.fillRect(0, -c, c, fillAHeight);
-					ctx.fillStyle = "rgba(16, 185, 129, 0.8)";
-					ctx.fillRect(0, -c + fillAHeight, c, fillBHeight);
-					ctx.restore();
+					drawPiece(
+						pieces.start.centerPiece,
+						pieces.end.centerPiece,
+						"rgba(239, 68, 68, 0.8)"
+					);
+					drawPiece(
+						pieces.start.q1,
+						pieces.end.q1,
+						"rgba(16, 185, 129, 0.8)"
+					);
+					drawPiece(
+						pieces.start.q2,
+						pieces.end.q2,
+						"rgba(16, 185, 129, 0.8)"
+					);
+					drawPiece(
+						pieces.start.q3,
+						pieces.end.q3,
+						"rgba(16, 185, 129, 0.8)"
+					);
+					drawPiece(
+						pieces.start.q4,
+						pieces.end.q4,
+						"rgba(16, 185, 129, 0.8)"
+					);
 
 					ctx.restore();
 
@@ -281,8 +485,8 @@ i<!DOCTYPE html>
 					sliderB.disabled = isAnimating;
 					visualizeBtn.disabled = isAnimating;
 					visualizeBtn.textContent = isAnimating
-						? "Visualizing..."
-						: "Visualize a² + b² = c²";
+						? "Animating..."
+						: "Show Area Proof";
 				}
 
 				function updateUI() {
@@ -313,9 +517,7 @@ i<!DOCTYPE html>
 						(centerX * window.devicePixelRatio - offsetX) / scale;
 					const worldY =
 						(centerY * window.devicePixelRatio - offsetY) / scale;
-
 					scale *= delta < 0 ? scaleAmount : 1 / scaleAmount;
-
 					offsetX =
 						centerX * window.devicePixelRatio - worldX * scale;
 					offsetY =
@@ -323,7 +525,25 @@ i<!DOCTYPE html>
 					draw();
 				}
 
-				// --- Mouse Event Listeners ---
+				// --- Event Listeners ---
+				sliderA.addEventListener("input", updateUI);
+				sliderB.addEventListener("input", updateUI);
+				showSquaresToggle.addEventListener("change", () => {
+					showSquares = showSquaresToggle.checked;
+					draw();
+				});
+				visualizeBtn.addEventListener("click", () => {
+					if (!isAnimating) {
+						isAnimating = true;
+						toggleControls();
+						if (!showSquares) {
+							// Ensure squares are visible for animation
+							showSquares = true;
+							showSquaresToggle.checked = true;
+						}
+						requestAnimationFrame(runAnimation);
+					}
+				});
 				canvas.addEventListener("mousedown", (e) => {
 					isDragging = true;
 					lastX = e.clientX;
@@ -335,10 +555,11 @@ i<!DOCTYPE html>
 					() => (isDragging = false)
 				);
 				canvas.addEventListener("mousemove", (e) => {
-					if (!isDragging) return;
-					handlePan(e.clientX - lastX, e.clientY - lastY);
-					lastX = e.clientX;
-					lastY = e.clientY;
+					if (isDragging) {
+						handlePan(e.clientX - lastX, e.clientY - lastY);
+						lastX = e.clientX;
+						lastY = e.clientY;
+					}
 				});
 				canvas.addEventListener(
 					"wheel",
@@ -353,8 +574,6 @@ i<!DOCTYPE html>
 					},
 					{ passive: false }
 				);
-
-				// --- Touch Event Listeners ---
 				canvas.addEventListener("touchstart", (e) => {
 					if (e.touches.length === 1) {
 						isDragging = true;
@@ -373,58 +592,54 @@ i<!DOCTYPE html>
 					isDragging = false;
 					initialPinchDistance = null;
 				});
-				canvas.addEventListener("touchmove", (e) => {
-					if (isDragging && e.touches.length === 1) {
-						handlePan(
-							e.touches[0].clientX - lastX,
-							e.touches[0].clientY - lastY
-						);
-						lastX = e.touches[0].clientX;
-						lastY = e.touches[0].clientY;
-					} else if (initialPinchDistance && e.touches.length === 2) {
-						const newPinchDistance = Math.hypot(
-							e.touches[0].clientX - e.touches[1].clientX,
-							e.touches[0].clientY - e.touches[1].clientY
-						);
-						const scaleFactor =
-							newPinchDistance / initialPinchDistance;
-						const newScale = lastScale * scaleFactor;
-
-						const rect = canvas.getBoundingClientRect();
-						const midX =
-							(e.touches[0].clientX + e.touches[1].clientX) / 2 -
-							rect.left;
-						const midY =
-							(e.touches[0].clientY + e.touches[1].clientY) / 2 -
-							rect.top;
-
-						const oldScale = scale;
-						scale = newScale;
-						offsetX -=
-							midX *
-							window.devicePixelRatio *
-							(1 / oldScale - 1 / newScale) *
-							oldScale;
-						offsetY -=
-							midY *
-							window.devicePixelRatio *
-							(1 / oldScale - 1 / newScale) *
-							oldScale;
-
-						draw();
-					}
-				});
-
-				// --- Final Setup ---
-				sliderA.addEventListener("input", updateUI);
-				sliderB.addEventListener("input", updateUI);
-				visualizeBtn.addEventListener("click", () => {
-					if (!isAnimating) {
-						isAnimating = true;
-						toggleControls();
-						requestAnimationFrame(runAnimation);
-					}
-				});
+				canvas.addEventListener(
+					"touchmove",
+					(e) => {
+						e.preventDefault();
+						if (isDragging && e.touches.length === 1) {
+							handlePan(
+								e.touches[0].clientX - lastX,
+								e.touches[0].clientY - lastY
+							);
+							lastX = e.touches[0].clientX;
+							lastY = e.touches[0].clientY;
+						} else if (
+							initialPinchDistance &&
+							e.touches.length === 2
+						) {
+							const newPinchDistance = Math.hypot(
+								e.touches[0].clientX - e.touches[1].clientX,
+								e.touches[0].clientY - e.touches[1].clientY
+							);
+							const scaleFactor =
+								newPinchDistance / initialPinchDistance;
+							const newScale = lastScale * scaleFactor;
+							const rect = canvas.getBoundingClientRect();
+							const midX =
+								(e.touches[0].clientX + e.touches[1].clientX) /
+									2 -
+								rect.left;
+							const midY =
+								(e.touches[0].clientY + e.touches[1].clientY) /
+									2 -
+								rect.top;
+							const oldScale = scale;
+							scale = newScale;
+							offsetX -=
+								midX *
+								window.devicePixelRatio *
+								(1 / oldScale - 1 / newScale) *
+								oldScale;
+							offsetY -=
+								midY *
+								window.devicePixelRatio *
+								(1 / oldScale - 1 / newScale) *
+								oldScale;
+							draw();
+						}
+					},
+					{ passive: false }
+				);
 				window.addEventListener("resize", resizeCanvas);
 				resizeCanvas();
 				updateUI();
