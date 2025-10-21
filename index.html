@@ -11,11 +11,6 @@
 			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
 			rel="stylesheet"
 		/>
-		<link
-			rel="icon"
-			type="image/png"
-			href="https://pbs.twimg.com/profile_images/1934315850149908480/jIjeWYOq_400x400.jpg"
-		/>
 		<style>
 			body {
 				font-family: "Inter", sans-serif;
@@ -45,6 +40,7 @@
 				</p>
 			</div>
 		</header>
+
 		<main
 			class="flex-grow flex flex-col lg:flex-row items-center justify-center p-4 md:p-8 space-y-4 lg:space-y-0 lg:space-x-8 overflow-hidden"
 		>
@@ -132,13 +128,32 @@
 					</div>
 				</div>
 
-				<div class="mt-8 text-center">
-					<button
-						id="visualizeBtn"
-						class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out disabled:bg-gray-400 disabled:cursor-not-allowed"
+				<div class="mt-6 border-t pt-4">
+					<p
+						class="text-lg font-medium text-gray-700 text-center mb-3"
 					>
-						Show Area Proof
-					</button>
+						Label Controls
+					</p>
+					<div class="grid grid-cols-3 gap-2">
+						<button
+							id="toggleA"
+							class="p-2 bg-red-100 text-red-700 font-semibold rounded-lg border-2 border-red-200 transition"
+						>
+							Hide a
+						</button>
+						<button
+							id="toggleB"
+							class="p-2 bg-green-100 text-green-700 font-semibold rounded-lg border-2 border-green-200 transition"
+						>
+							Hide b
+						</button>
+						<button
+							id="toggleC"
+							class="p-2 bg-blue-100 text-blue-700 font-semibold rounded-lg border-2 border-blue-200 transition"
+						>
+							Hide c
+						</button>
+					</div>
 				</div>
 
 				<div
@@ -147,24 +162,36 @@
 					<h3 class="text-lg font-semibold text-gray-800 mb-2">
 						The Theorem in Action
 					</h3>
-					<div
-						class="text-xl md:text-2xl font-mono bg-white p-3 rounded-lg shadow-inner"
-					>
-						<span class="text-red-600">a²</span> +
-						<span class="text-green-600">b²</span> =
-						<span class="text-blue-600">c²</span>
+					<div id="calculation-container" class="text-left">
+						<div
+							id="main-formula"
+							class="text-center text-xl md:text-2xl font-mono bg-white p-3 rounded-lg shadow-inner"
+						>
+							<span class="text-red-600">a²</span> +
+							<span class="text-green-600">b²</span> =
+							<span class="text-blue-600">c²</span>
+						</div>
+						<div
+							id="formulaValues"
+							class="text-left font-mono mt-3 text-gray-600 break-words space-y-1"
+						></div>
+						<div
+							id="formulaResult"
+							class="text-left font-mono mt-2 text-gray-600 break-words"
+						></div>
+						<div id="reveal-container" class="mt-4 hidden">
+							<button
+								id="revealCalcBtn"
+								class="w-full text-indigo-700 bg-indigo-100 p-2 rounded-md hover:bg-indigo-200 transition"
+							>
+								Reveal Calculation
+							</button>
+						</div>
 					</div>
-					<div
-						id="formulaValues"
-						class="text-md md:text-lg font-mono mt-3 text-gray-600 break-words"
-					></div>
-					<div
-						id="formulaResult"
-						class="text-md md:text-lg font-mono mt-2 text-gray-600 break-words"
-					></div>
 				</div>
 			</div>
 		</main>
+
 		<footer
 			class="bg-white text-center text-sm text-gray-500 p-4 border-t border-gray-200"
 		>
@@ -190,17 +217,22 @@
 				const valueB = document.getElementById("valueB");
 				const showSquaresToggle =
 					document.getElementById("showSquaresToggle");
-				const visualizeBtn = document.getElementById("visualizeBtn");
 				const formulaValues = document.getElementById("formulaValues");
 				const formulaResult = document.getElementById("formulaResult");
+				const toggleA = document.getElementById("toggleA");
+				const toggleB = document.getElementById("toggleB");
+				const toggleC = document.getElementById("toggleC");
+				const revealContainer =
+					document.getElementById("reveal-container");
+				const revealCalcBtn = document.getElementById("revealCalcBtn");
+				document.getElementById("year").textContent =
+					new Date().getFullYear();
 
 				// --- State ---
 				let a = +sliderA.value;
 				let b = +sliderB.value;
 				let showSquares = showSquaresToggle.checked;
-				let isAnimating = false;
-				let animationStartTime = 0;
-				const animationDuration = 2000;
+				let hiddenLabel = null; // can be 'a', 'b', or 'c'
 
 				// --- Transformation State ---
 				let scale = 2.5;
@@ -211,10 +243,6 @@
 				let lastY = 0;
 				let initialPinchDistance = null;
 				let lastScale = 1;
-
-				// --- Utility Functions ---
-				// Linear interpolation function for smooth animation
-				const lerp = (start, end, t) => start * (1 - t) + end * t;
 
 				function resizeCanvas() {
 					const parent = canvas.parentElement;
@@ -241,7 +269,6 @@
 					const angle = Math.atan2(-a, b);
 
 					if (showSquares) {
-						// Draw the three squares if toggled on
 						ctx.lineWidth = 2 / scale;
 						ctx.fillStyle = "rgba(16, 185, 129, 0.6)";
 						ctx.strokeStyle = "rgb(5, 150, 105)";
@@ -263,7 +290,6 @@
 						ctx.restore();
 					}
 
-					// Draw the main triangle background
 					ctx.beginPath();
 					ctx.moveTo(0, 0);
 					ctx.lineTo(-b, 0);
@@ -272,239 +298,54 @@
 					ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
 					ctx.fill();
 
-					// Draw colored edges for the triangle
 					ctx.lineWidth = Math.max(1.5, Math.min(5, c / 40)) / scale;
-					// Side b (green)
 					ctx.beginPath();
 					ctx.moveTo(0, 0);
 					ctx.lineTo(-b, 0);
 					ctx.strokeStyle = "rgb(5, 150, 105)";
 					ctx.stroke();
-					// Side a (red)
 					ctx.beginPath();
 					ctx.moveTo(0, 0);
 					ctx.lineTo(0, -a);
 					ctx.strokeStyle = "rgb(220, 38, 38)";
 					ctx.stroke();
-					// Side c (blue)
 					ctx.beginPath();
 					ctx.moveTo(-b, 0);
 					ctx.lineTo(0, -a);
 					ctx.strokeStyle = "rgb(37, 99, 235)";
 					ctx.stroke();
 
-					// Draw the numerical side length labels
 					ctx.font = `bold ${60 / scale}px sans-serif`;
 					ctx.textAlign = "center";
 					ctx.textBaseline = "middle";
 
-					// Label 'a' (red)
-					ctx.save();
-					ctx.translate(30 / scale, -a / 2);
-					ctx.rotate(Math.PI / 2);
-					ctx.fillStyle = "rgb(220, 38, 38)";
-					ctx.fillText(
-						a % 1 === 0 ? a.toFixed(0) : a.toFixed(1),
-						0,
-						0
-					);
-					ctx.restore();
+					const formatNumber = (num) =>
+						num % 1 === 0 ? num.toFixed(0) : num.toFixed(1);
 
-					// Label 'b' (green)
-					ctx.fillStyle = "rgb(5, 150, 105)";
-					ctx.fillText(
-						b % 1 === 0 ? b.toFixed(0) : b.toFixed(1),
-						-b / 2,
-						30 / scale
-					);
-
-					// Label 'c' (blue)
-					ctx.save();
-					ctx.translate(-b / 2, -a / 2);
-					ctx.rotate(angle);
-					ctx.fillStyle = "rgb(37, 99, 235)";
-					ctx.fillText(
-						c % 1 === 0 ? c.toFixed(0) : c.toFixed(1),
-						0,
-						-30 / scale
-					);
-					ctx.restore();
-
-					ctx.restore();
-				}
-
-				// --- Dissection Animation Logic ---
-				function getDissectionPieces() {
-					const c = Math.sqrt(a * a + b * b);
-					const cos = b / c;
-					const sin = a / c;
-
-					// Center of square b
-					const centerBx = -b / 2;
-					const centerBy = b / 2;
-
-					// Points for cutting square b
-					const p1 = { x: -b, y: a * cos * cos };
-					const p2 = { x: -b * sin * sin, y: 0 };
-					const p3 = { x: -a * sin * cos, y: b };
-					const p4 = { x: -b, y: b - a * cos * cos };
-
-					const startPieces = {
-						// Square a is the center piece
-						centerPiece: [
-							{ x: 0, y: 0 },
-							{ x: a, y: 0 },
-							{ x: a, y: -a },
-							{ x: 0, y: -a },
-						],
-						// The four pieces from square b
-						q1: [
-							{ x: -b, y: 0 },
-							p2,
-							{ x: centerBx, y: centerBy },
-							p1,
-						],
-						q2: [
-							p2,
-							{ x: 0, y: 0 },
-							p3,
-							{ x: centerBx, y: centerBy },
-						],
-						q3: [
-							p3,
-							{ x: 0, y: b },
-							p4,
-							{ x: centerBx, y: centerBy },
-						],
-						q4: [
-							p4,
-							{ x: -b, y: b },
-							p1,
-							{ x: centerBx, y: centerBy },
-						],
-					};
-
-					const endPieces = {
-						centerPiece: [
-							{ x: a * sin, y: -a * cos },
-							{ x: a * sin + a * cos, y: -a * cos + a * sin },
-							{ x: a * cos, y: a * sin },
-							{ x: 0, y: 0 },
-						].map((p) => ({ x: p.x - b, y: p.y })),
-						q1: [
-							{ x: -b, y: 0 },
-							{ x: 0, y: 0 },
-							{ x: a * sin, y: -a * cos },
-							{ x: a * sin - b, y: -a * cos },
-						],
-						q2: [
-							{ x: 0, y: 0 },
-							{ x: a * cos, y: a * sin },
-							{ x: a * cos - b, y: a * sin },
-							{ x: -b, y: 0 },
-						],
-						q3: [
-							{ x: a * cos, y: a * sin },
-							{ x: a * cos + a * sin, y: a * sin - a * cos },
-							{ x: a * sin, y: -a * cos },
-							{ x: 0, y: 0 },
-						].map((p) => ({ x: p.x - b, y: p.y + b })),
-						q4: [
-							{ x: a * sin - b, y: -a * cos + b },
-							{ x: a * sin, y: -a * cos },
-							{ x: a * sin + a * cos, y: -a * cos + a * sin },
-							{ x: a * cos, y: a * sin },
-						].map((p) => ({ x: p.x - b, y: p.y - b })),
-					};
-
-					return { start: startPieces, end: endPieces };
-				}
-
-				function runAnimation(timestamp) {
-					if (!animationStartTime) animationStartTime = timestamp;
-					const progress = Math.min(
-						(timestamp - animationStartTime) / animationDuration,
-						1
-					);
-					const easedProgress =
-						0.5 - 0.5 * Math.cos(progress * Math.PI); // Ease in-out
-
-					draw();
-
-					ctx.save();
-					ctx.translate(offsetX, offsetY);
-					ctx.scale(scale, scale);
-
-					const pieces = getDissectionPieces();
-
-					const drawPiece = (start, end, color) => {
-						ctx.beginPath();
-						const firstPoint = {
-							x: lerp(start[0].x, end[0].x, easedProgress),
-							y: lerp(start[0].y, end[0].y, easedProgress),
-						};
-						ctx.moveTo(firstPoint.x, firstPoint.y);
-						for (let i = 1; i < start.length; i++) {
-							const point = {
-								x: lerp(start[i].x, end[i].x, easedProgress),
-								y: lerp(start[i].y, end[i].y, easedProgress),
-							};
-							ctx.lineTo(point.x, point.y);
-						}
-						ctx.closePath();
-						ctx.fillStyle = color;
-						ctx.fill();
-						ctx.stroke();
-					};
-
-					ctx.strokeStyle = "#1f2937";
-					ctx.lineWidth = 1 / scale;
-
-					drawPiece(
-						pieces.start.centerPiece,
-						pieces.end.centerPiece,
-						"rgba(239, 68, 68, 0.8)"
-					);
-					drawPiece(
-						pieces.start.q1,
-						pieces.end.q1,
-						"rgba(16, 185, 129, 0.8)"
-					);
-					drawPiece(
-						pieces.start.q2,
-						pieces.end.q2,
-						"rgba(16, 185, 129, 0.8)"
-					);
-					drawPiece(
-						pieces.start.q3,
-						pieces.end.q3,
-						"rgba(16, 185, 129, 0.8)"
-					);
-					drawPiece(
-						pieces.start.q4,
-						pieces.end.q4,
-						"rgba(16, 185, 129, 0.8)"
-					);
-
-					ctx.restore();
-
-					if (progress < 1) {
-						requestAnimationFrame(runAnimation);
-					} else {
-						isAnimating = false;
-						animationStartTime = 0;
-						toggleControls();
-						draw();
+					if (hiddenLabel !== "a") {
+						ctx.save();
+						ctx.translate(30 / scale, -a / 2);
+						ctx.rotate(Math.PI / 2);
+						ctx.fillStyle = "rgb(220, 38, 38)";
+						ctx.fillText(formatNumber(a), 0, 0);
+						ctx.restore();
 					}
-				}
 
-				function toggleControls() {
-					sliderA.disabled = isAnimating;
-					sliderB.disabled = isAnimating;
-					visualizeBtn.disabled = isAnimating;
-					visualizeBtn.textContent = isAnimating
-						? "Animating..."
-						: "Show Area Proof";
+					if (hiddenLabel !== "b") {
+						ctx.fillStyle = "rgb(5, 150, 105)";
+						ctx.fillText(formatNumber(b), -b / 2, 30 / scale);
+					}
+
+					if (hiddenLabel !== "c") {
+						ctx.save();
+						ctx.translate(-b / 2, -a / 2);
+						ctx.rotate(angle);
+						ctx.fillStyle = "rgb(37, 99, 235)";
+						ctx.fillText(formatNumber(c), 0, -30 / scale);
+						ctx.restore();
+					}
+
+					ctx.restore();
 				}
 
 				function updateUI() {
@@ -512,15 +353,89 @@
 					b = +sliderB.value;
 					valueA.textContent = a;
 					valueB.textContent = b;
+
+					updateCalculationBox();
+					updateToggleButtons();
+					draw();
+				}
+
+				function updateCalculationBox() {
 					const c = Math.sqrt(a * a + b * b);
 					const aSq = a * a;
 					const bSq = b * b;
-					const cSq = Math.round(c * c);
-					formulaValues.innerHTML = `<span class="text-red-600">${a}²</span> + <span class="text-green-600">${b}²</span> = <span class="text-blue-600">${c.toFixed(
-						2
-					)}²</span>`;
-					formulaResult.innerHTML = `<span class="text-red-600">${aSq}</span> + <span class="text-green-600">${bSq}</span> = <span class="text-blue-600">${cSq}</span>`;
+					const cSq = c * c;
+
+					revealContainer.classList.add("hidden");
+					formulaValues.classList.remove("text-center");
+					formulaResult.classList.remove("text-center");
+
+					if (hiddenLabel === null) {
+						formulaValues.innerHTML = `<span class="text-red-600">${a}²</span> + <span class="text-green-600">${b}²</span> = <span class="text-blue-600">${c.toFixed(
+							2
+						)}²</span>`;
+						formulaResult.innerHTML = `<span class="text-red-600">${aSq}</span> + <span class="text-green-600">${bSq}</span> = <span class="text-blue-600">${cSq.toFixed(
+							0
+						)}</span>`;
+					} else {
+						formulaResult.innerHTML = "";
+						revealContainer.classList.remove("hidden");
+						if (hiddenLabel === "c") {
+							formulaValues.innerHTML = "c = √(a² + b²)";
+						} else if (hiddenLabel === "a") {
+							formulaValues.innerHTML = "a = √(c² - b²)";
+						} else if (hiddenLabel === "b") {
+							formulaValues.innerHTML = "b = √(c² - a²)";
+						}
+					}
+				}
+
+				function updateToggleButtons() {
+					toggleA.textContent =
+						hiddenLabel === "a" ? "Show a" : "Hide a";
+					toggleB.textContent =
+						hiddenLabel === "b" ? "Show b" : "Hide b";
+					toggleC.textContent =
+						hiddenLabel === "c" ? "Show c" : "Hide c";
+				}
+
+				function handleToggle(label) {
+					if (hiddenLabel === label) {
+						hiddenLabel = null;
+					} else {
+						hiddenLabel = label;
+					}
+					updateToggleButtons();
+					updateCalculationBox();
 					draw();
+				}
+
+				function revealCalculation() {
+					const c = Math.sqrt(a * a + b * b);
+					const aSq = a * a;
+					const bSq = b * b;
+					const cSq = c * c;
+					let steps = "";
+
+					if (hiddenLabel === "c") {
+						steps = `c = √(${a}² + ${b}²)<br>`;
+						steps += `c = √(${aSq} + ${bSq})<br>`;
+						steps += `c = √(${cSq.toFixed(2)})<br>`;
+						steps += `c = ${c.toFixed(2)}`;
+					} else if (hiddenLabel === "a") {
+						steps = `a = √(${c.toFixed(2)}² - ${b}²)<br>`;
+						steps += `a = √(${cSq.toFixed(2)} - ${bSq})<br>`;
+						steps += `a = √(${(cSq - bSq).toFixed(2)})<br>`;
+						steps += `a = ${a.toFixed(2)}`;
+					} else if (hiddenLabel === "b") {
+						steps = `b = √(${c.toFixed(2)}² - ${a}²)<br>`;
+						steps += `b = √(${cSq.toFixed(2)} - ${aSq})<br>`;
+						steps += `b = √(${(cSq - aSq).toFixed(2)})<br>`;
+						steps += `b = ${b.toFixed(2)}`;
+					}
+
+					formulaValues.innerHTML = steps;
+					formulaResult.innerHTML = "";
+					revealContainer.classList.add("hidden");
 				}
 
 				function handlePan(dx, dy) {
@@ -550,18 +465,12 @@
 					showSquares = showSquaresToggle.checked;
 					draw();
 				});
-				visualizeBtn.addEventListener("click", () => {
-					if (!isAnimating) {
-						isAnimating = true;
-						toggleControls();
-						if (!showSquares) {
-							// Ensure squares are visible for animation
-							showSquares = true;
-							showSquaresToggle.checked = true;
-						}
-						requestAnimationFrame(runAnimation);
-					}
-				});
+
+				toggleA.addEventListener("click", () => handleToggle("a"));
+				toggleB.addEventListener("click", () => handleToggle("b"));
+				toggleC.addEventListener("click", () => handleToggle("c"));
+				revealCalcBtn.addEventListener("click", revealCalculation);
+
 				canvas.addEventListener("mousedown", (e) => {
 					isDragging = true;
 					lastX = e.clientX;
